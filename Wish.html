@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeonQuiz Studio - Interactive JSON Quiz Platform</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            850: '#0f172a',
+                            950: '#020617',
+                        },
+                        neon: {
+                            cyan: '#00f2fe',
+                            purple: '#a855f7',
+                            indigo: '#6366f1',
+                            pink: '#ec4899',
+                            emerald: '#10b981',
+                            rose: '#ef4444',
+                            amber: '#f59e0b'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        :root {
+            --bg-main: #020617;
+            --card-bg: rgba(15, 23, 42, 0.75);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --neon-glow-cyan: rgba(0, 242, 254, 0.25);
+            --neon-glow-purple: rgba(168, 85, 247, 0.25);
+        }
+
+        body {
+            background-color: var(--bg-main);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(168, 85, 247, 0.15) 0px, transparent 50%),
+                radial-gradient(at 50% 100%, rgba(0, 242, 254, 0.10) 0px, transparent 50%);
+            background-attachment: fixed;
+            min-height: 100vh;
+        }
+
+        .glass-panel {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--card-border);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .glass-card-hover {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glass-card-hover:hover {
+            border-color: rgba(168, 85, 247, 0.4);
+            transform: translateY(-4px);
+            box-shadow: 0 15px 35px rgba(168, 85, 247, 0.2);
+        }
+
+        .glass-input {
+            background: rgba(2, 6, 23, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #f1f5f9;
+        }
+
+        .glass-input:focus {
+            border-color: #a855f7;
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.3);
+            outline: none;
+        }
+
+        .neon-btn-primary {
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+            color: #ffffff;
+            box-shadow: 0 0 20px rgba(168, 85, 247, 0.35);
+            transition: all 0.3s ease;
+        }
+
+        .neon-btn-primary:hover {
+            box-shadow: 0 0 30px rgba(168, 85, 247, 0.6);
+            transform: scale(1.02);
+        }
+
+        .neon-btn-cyan {
+            background: linear-gradient(135deg, #00f2fe 0%, #3b82f6 100%);
+            color: #020617;
+            font-weight: 700;
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .neon-btn-cyan:hover {
+            box-shadow: 0 0 25px rgba(0, 242, 254, 0.6);
+            transform: scale(1.02);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(2, 6, 23, 0.5);
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(168, 85, 247, 0.5);
+        }
+
+        @keyframes pulse-border {
+            0%, 100% { border-color: rgba(239, 68, 68, 0.8); }
+            50% { border-color: rgba(239, 68, 68, 0.2); }
+        }
+
+        .timer-warning {
+            animation: pulse-border 1s infinite;
+        }
+    </style>
+</head>
+<body class="text-slate-100 font-sans min-h-screen flex flex-col justify-between selection:bg-purple-500 selection:text-white">
+
+    <header class="border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="showScreen('home')">
+                <div class="w-11 h-11 rounded-2xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/20">
+                    <i class="fa-solid fa-bolt text-slate-950 text-2xl font-black"></i>
+                </div>
+                <div>
+                    <span class="text-2xl font-black tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">
+                        NeonQuiz Studio
+                    </span>
+                    <span class="hidden sm:inline-block text-[10px] text-purple-300 font-mono ml-2 px-2 py-0.5 rounded-full border border-purple-500/30 bg-purple-500/10">v2.5 LocalStorage Sync</span>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-2 sm:space-x-3">
+                <button onclick="showScreen('home')" class="px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700/80 hover:border-purple-400/50 text-slate-200 text-xs sm:text-sm font-semibold flex items-center space-x-2 transition-all">
+                    <i class="fa-solid fa-shapes text-purple-400"></i>
+                    <span class="hidden md:inline">Library</span>
+                </button>
+                <button onclick="openStatsModal()" class="px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-700/80 hover:border-cyan-400/50 text-slate-200 text-xs sm:text-sm font-semibold flex items-center space-x-2 transition-all">
+                    <i class="fa-solid fa-clock-rotate-left text-neon-cyan"></i>
+                    <span>All History</span>
+                </button>
+                <button onclick="openImportModal()" class="px-3.5 py-2 rounded-xl neon-btn-primary text-xs sm:text-sm font-bold flex items-center space-x-2">
+                    <i class="fa-solid fa-code"></i>
+                    <span class="hidden md:inline">Import JSON</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow w-full">
+
+        <!-- SCREEN 1: QUIZ LIBRARY & GLOBAL SUMMARY STATS -->
+        <section id="screen-home" class="space-y-8">
+            <!-- Global Summary Statistics Header Bar -->
+            <div class="glass-panel rounded-3xl p-6 border border-slate-800 grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6 text-center">
+                <div class="space-y-1">
+                    <span class="text-xs font-mono uppercase tracking-wider text-slate-400">Total Quizzes</span>
+                    <div id="stat-total-quizzes" class="text-2xl sm:text-3xl font-black text-indigo-400">0</div>
+                </div>
+                <div class="space-y-1">
+                    <span class="text-xs font-mono uppercase tracking-wider text-slate-400">Attempts Taken</span>
+                    <div id="stat-total-attempts" class="text-2xl sm:text-3xl font-black text-neon-cyan">0</div>
+                </div>
+                <div class="space-y-1">
+                    <span class="text-xs font-mono uppercase tracking-wider text-slate-400">Average Accuracy</span>
+                    <div id="stat-avg-accuracy" class="text-2xl sm:text-3xl font-black text-neon-purple">0%</div>
+                </div>
+                <div class="space-y-1">
+                    <span class="text-xs font-mono uppercase tracking-wider text-slate-400">Questions Answered</span>
+                    <div id="stat-total-questions" class="text-2xl sm:text-3xl font-black text-neon-emerald">0</div>
+                </div>
+            </div>
+
+            <!-- Library Title Bar -->
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 class="text-3xl font-extrabold text-slate-100 flex items-center space-x-3">
+                        <span>Quiz Library</span>
+                    </h1>
+                    <p class="text-slate-400 text-sm mt-1">Import raw JSON quiz code, complete timed quizzes, and log attempt scores.</p>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <button onclick="openSchemaModal()" class="px-4 py-2 rounded-xl bg-slate-900 border border-slate-700 hover:border-purple-400 text-slate-300 text-xs font-bold transition-all flex items-center space-x-2">
+                        <i class="fa-solid fa-file-code text-neon-purple"></i>
+                        <span>JSON Schema Spec</span>
+                    </button>
+                    <button onclick="openImportModal()" class="px-4 py-2 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-300 hover:bg-purple-500/20 text-xs font-bold transition-all flex items-center space-x-2">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Paste JSON Code</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quiz Grid Container -->
+            <div id="quiz-library-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Dynamic Quiz Cards -->
+            </div>
+
+            <!-- Empty State -->
+            <div id="empty-library-state" class="hidden glass-panel rounded-3xl p-12 text-center max-w-md mx-auto my-8 border border-slate-800">
+                <div class="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mx-auto mb-4 text-purple-400 text-2xl">
+                    <i class="fa-solid fa-folder-open"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-200 mb-1">No Quizzes Available</h3>
+                <p class="text-slate-400 text-sm mb-6">Paste raw quiz JSON code or reset to load default presets!</p>
+                <button onclick="openImportModal()" class="neon-btn-primary px-5 py-2.5 rounded-xl font-bold text-sm">
+                    Import JSON Quiz
+                </button>
+            </div>
+        </section>
+
+        <!-- SCREEN 2: INTERACTIVE QUIZ PLAYER -->
+        <section id="screen-quiz" class="hidden max-w-4xl mx-auto space-y-6">
+            <!-- Quiz Top Header -->
+            <div class="glass-panel rounded-2xl p-5 flex flex-wrap items-center justify-between gap-4 border border-slate-800">
+                <div>
+                    <span id="quiz-title-display" class="text-xs font-bold uppercase tracking-wider text-neon-purple">Quiz Title</span>
+                    <h2 id="question-number-display" class="text-xl sm:text-2xl font-bold text-slate-100">Question 1 of 24</h2>
+                </div>
+                
+                <div class="flex items-center space-x-3">
+                    <!-- Timer Badge -->
+                    <div id="timer-badge" class="flex items-center space-x-2 bg-slate-950/90 border border-slate-700/80 px-4 py-2 rounded-xl text-slate-200 text-sm font-mono font-bold transition-all">
+                        <i id="timer-icon" class="fa-solid fa-stopwatch text-amber-400"></i>
+                        <span id="timer-display">20s</span>
+                    </div>
+
+                    <!-- Timer Toggle Button -->
+                    <button id="toggle-timer-btn" onclick="toggleQuizTimer()" class="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 hover:border-purple-400 text-xs font-mono font-bold text-slate-300 transition-all" title="Toggle untimed mode">
+                        <i class="fa-solid fa-pause text-amber-400 mr-1"></i> Mode
+                    </button>
+
+                    <button onclick="exitQuiz()" class="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700/60 text-slate-400 hover:text-slate-200 transition-all" title="Exit Quiz">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Question Progress Indicators -->
+            <div class="space-y-1.5">
+                <!-- Overall Quiz Progress -->
+                <div class="w-full bg-slate-900 h-2 rounded-full overflow-hidden border border-slate-800">
+                    <div id="quiz-progress-bar" class="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 h-full rounded-full transition-all duration-300 w-0"></div>
+                </div>
+                <!-- Question Seconds Countdown Bar -->
+                <div class="w-full bg-slate-950 h-1.5 rounded-full overflow-hidden border border-slate-800">
+                    <div id="timer-progress-bar" class="bg-amber-400 h-full transition-all duration-200 w-full"></div>
+                </div>
+            </div>
+
+            <!-- Question Card -->
+            <div class="glass-panel rounded-3xl p-6 sm:p-10 space-y-8 border border-slate-800 relative overflow-hidden">
+                <div class="space-y-3">
+                    <div id="question-category" class="inline-block px-3 py-1 rounded-md bg-purple-500/10 border border-purple-500/20 text-purple-300 text-xs font-semibold uppercase tracking-wider">
+                        Category
+                    </div>
+                    <h3 id="question-text" class="text-xl sm:text-2xl font-bold leading-relaxed text-slate-100">
+                        Question text goes here?
+                    </h3>
+                </div>
+
+                <!-- Answer Choices Container -->
+                <div id="options-container" class="grid grid-cols-1 gap-4">
+                    <!-- Option Buttons rendered dynamically -->
+                </div>
+
+                <!-- Immediate Explanation Panel -->
+                <div id="feedback-panel" class="hidden rounded-2xl p-5 border space-y-2 transition-all">
+                    <div class="flex items-center space-x-2 font-bold text-base" id="feedback-header">
+                        <!-- Icon + Dynamic Header -->
+                    </div>
+                    <p id="feedback-text" class="text-sm text-slate-300 leading-relaxed"></p>
+                </div>
+
+                <!-- Next Question Action -->
+                <div class="flex justify-end pt-2">
+                    <button id="next-btn" onclick="nextQuestion()" class="hidden neon-btn-primary px-8 py-3 rounded-xl font-bold flex items-center space-x-2">
+                        <span>Next Question</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- SCREEN 3: RESULTS SUMMARY & RETAKE COMPARISON -->
+        <section id="screen-results" class="hidden max-w-4xl mx-auto space-y-8">
+            <div class="glass-panel rounded-3xl p-8 sm:p-12 text-center space-y-8 border border-slate-800 relative overflow-hidden">
+                <div class="space-y-2">
+                    <span class="text-xs font-bold uppercase tracking-widest text-neon-cyan">Quiz Attempt Finished</span>
+                    <h2 class="text-3xl sm:text-4xl font-extrabold text-slate-100">Results & Performance</h2>
+                </div>
+
+                <!-- Current Score vs Best Score Banner -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg mx-auto">
+                    <!-- Current Attempt -->
+                    <div class="glass-panel rounded-2xl p-5 border border-cyan-500/30 text-center">
+                        <span class="text-xs text-slate-400 font-mono block mb-1">This Attempt</span>
+                        <span id="result-percentage" class="text-4xl font-black text-neon-cyan">0%</span>
+                        <span id="result-score-text" class="text-xs font-medium text-slate-300 block mt-1">0 / 0 Correct</span>
+                    </div>
+                    <!-- Personal Best Score -->
+                    <div class="glass-panel rounded-2xl p-5 border border-purple-500/30 text-center">
+                        <span class="text-xs text-slate-400 font-mono block mb-1">Personal Best</span>
+                        <span id="result-best-percentage" class="text-4xl font-black text-neon-purple">0%</span>
+                        <span id="result-best-text" class="text-xs font-medium text-slate-300 block mt-1">Attempt #1</span>
+                    </div>
+                </div>
+
+                <div id="result-feedback-badge" class="inline-block px-4 py-2 rounded-xl text-sm font-bold">
+                    Feedback Message
+                </div>
+
+                <!-- Navigation Controls -->
+                <div class="flex flex-wrap items-center justify-center gap-4 pt-2">
+                    <button onclick="retakeCurrentQuiz()" class="neon-btn-primary px-7 py-3 rounded-xl font-bold flex items-center space-x-2">
+                        <i class="fa-solid fa-rotate-right"></i>
+                        <span>Retake Quiz</span>
+                    </button>
+                    <button onclick="openStatsModalForCurrentQuiz()" class="px-6 py-3 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 font-bold hover:bg-cyan-500/20 transition-all flex items-center space-x-2">
+                        <i class="fa-solid fa-clock-rotate-left"></i>
+                        <span>View Past Attempts</span>
+                    </button>
+                    <button onclick="showScreen('home')" class="px-6 py-3 rounded-xl bg-slate-900 border border-slate-700/80 hover:bg-slate-800 text-slate-200 font-bold transition-all">
+                        Back to Library
+                    </button>
+                </div>
+            </div>
+
+            <!-- Detailed Answer Breakdown -->
+            <div class="space-y-4">
+                <h3 class="text-xl font-bold text-slate-100 flex items-center space-x-2">
+                    <i class="fa-solid fa-list-check text-purple-400"></i>
+                    <span>Question Breakdown</span>
+                </h3>
+
+                <div id="review-list-container" class="space-y-4">
+                    <!-- Cards rendered dynamically -->
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- MODAL 1: PASTE JSON TEXT IMPORTER -->
+    <div id="import-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel rounded-3xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden border border-slate-700 shadow-2xl">
+            <div class="p-6 border-b border-slate-800 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="p-2 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20">
+                        <i class="fa-solid fa-code text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-100">Import Quiz from Raw JSON Text</h3>
+                        <p class="text-xs text-slate-400">Paste raw JSON code string below to import or update a quiz</p>
+                    </div>
+                </div>
+                <button onclick="closeImportModal()" class="text-slate-400 hover:text-slate-100 p-2 rounded-xl hover:bg-slate-800/60">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-4 flex-grow overflow-y-auto custom-scrollbar">
+                <!-- Optional Override Timer Setting -->
+                <div class="bg-slate-900/80 p-4 rounded-2xl border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div>
+                        <span class="text-xs font-bold text-slate-200 block">Question Time Limit Override</span>
+                        <span class="text-xs text-slate-400">Seconds per question (Set to 0 for unlimited time)</span>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <input type="number" id="timer-override-input" min="0" max="300" placeholder="e.g. 20" class="w-24 glass-input rounded-xl px-3 py-1.5 text-xs text-center font-mono">
+                        <span class="text-xs text-slate-400">sec</span>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between text-xs">
+                    <label for="json-input" class="font-mono text-slate-300">Paste JSON Text String:</label>
+                    <button onclick="autoFormatJsonInput()" class="text-neon-cyan hover:underline flex items-center space-x-1">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        <span>Auto-Format JSON</span>
+                    </button>
+                </div>
+                <textarea id="json-input" rows="11" class="w-full glass-input rounded-2xl p-4 font-mono text-xs sm:text-sm custom-scrollbar focus:ring-1 focus:ring-purple-400" placeholder='{ "title": "My Custom Quiz", "timeLimit": 20, "questions": [...] }'></textarea>
+                
+                <div id="import-error-msg" class="hidden p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-mono flex items-start space-x-2">
+                    <i class="fa-solid fa-circle-exclamation mt-0.5"></i>
+                    <span id="import-error-text">Syntax error</span>
+                </div>
+            </div>
+
+            <div class="p-6 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3 bg-slate-950/40">
+                <button onclick="openSchemaModal()" class="text-xs text-purple-400 hover:text-purple-300 underline font-semibold">
+                    View Reference JSON Format
+                </button>
+                <div class="flex items-center space-x-3">
+                    <button onclick="closeImportModal()" class="px-5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-300 text-sm font-semibold hover:bg-slate-800">
+                        Cancel
+                    </button>
+                    <button onclick="processJsonImportText()" class="neon-btn-primary px-6 py-2.5 rounded-xl text-sm font-bold flex items-center space-x-2">
+                        <i class="fa-solid fa-check"></i>
+                        <span>Import & Save</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 2: JSON SCHEMA REFERENCE MODAL -->
+    <div id="schema-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel rounded-3xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden border border-slate-700 shadow-2xl">
+            <div class="p-6 border-b border-slate-800 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="p-2 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                        <i class="fa-solid fa-file-code text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-slate-100">Standard Quiz JSON Format</h3>
+                        <p class="text-xs text-slate-400">Copy this exact format to generate new quizzes with AI models</p>
+                    </div>
+                </div>
+                <button onclick="closeSchemaModal()" class="text-slate-400 hover:text-slate-100 p-2 rounded-xl hover:bg-slate-800/60">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div class="p-6 space-y-4 flex-grow overflow-y-auto custom-scrollbar">
+                <pre><code id="schema-json-code" class="block w-full glass-input rounded-2xl p-4 font-mono text-xs text-purple-300 overflow-x-auto custom-scrollbar"></code></pre>
+            </div>
+
+            <div class="p-6 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3 bg-slate-950/40">
+                <button onclick="copySchemaJsonToClipboard()" class="px-5 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-slate-200 text-sm font-semibold hover:border-purple-400 flex items-center space-x-2">
+                    <i class="fa-solid fa-copy text-purple-400"></i>
+                    <span>Copy Schema JSON</span>
+                </button>
+                <button onclick="loadSchemaTemplateIntoImporter()" class="neon-btn-cyan px-6 py-2.5 rounded-xl text-sm font-bold flex items-center space-x-2">
+                    <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                    <span>Load Template into Importer</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL 3: COMPREHENSIVE ATTEMPT HISTORY LOGS -->
+    <div id="stats-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="glass-panel rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden border border-slate-700 shadow-2xl">
+            <div class="p-6 border-b border-slate-800 flex items-center justify-between">
+                <div class="flex items-center space-x-3">
+                    <div class="p-2 rounded-lg bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">
+                        <i class="fa-solid fa-clock-rotate-left text-lg"></i>
+                    </div>
+                    <div>
+                        <h3 id="stats-modal-title" class="text-lg font-bold text-slate-100">Attempt Logs & Score History</h3>
+                        <p class="text-xs text-slate-400">Persistent log of all completed quiz attempts stored in LocalStorage</p>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button onclick="clearAllAttemptHistory()" class="px-3 py-1.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-bold hover:bg-rose-500/20 transition-all">
+                        Clear All History
+                    </button>
+                    <button onclick="closeStatsModal()" class="text-slate-400 hover:text-slate-100 p-2 rounded-xl hover:bg-slate-800/60">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="p-6 flex-grow overflow-y-auto custom-scrollbar space-y-4">
+                <div id="stats-history-list" class="space-y-3">
+                    <!-- History rows populated dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-6 right-6 z-50 pointer-events-none space-y-2"></div>
+
+    <footer class="border-t border-slate-800/60 py-6 text-center text-xs text-slate-500">
+        <p>© 2026 NeonQuiz Studio • Persistent LocalStorage Engine</p>
+    </footer>
+
+    <script>
+        // STORAGE KEY
+        const STORAGE_KEY = 'quiz_app_v2_data';
+
+        // DEFAULT 24-QUESTION PRESET QUIZ
+        const DEFAULT_24_QUESTION_QUIZ = {
+            "id": "quiz-preset-24q",
+            "title": "24-Question Pop Culture & Trivia Challenge",
+            "category": "General Knowledge",
+            "description": "Comprehensive 24-question multi-topic quiz preset testing science, history, geography, and pop culture.",
+            "timeLimit": 20,
+            "questions": [
+                {
+                    "id": 1,
+                    "text": "What chemical element has the symbol 'Fe'?",
+                    "options": ["Lead", "Iron", "Gold", "Silver"],
+                    "correct": 1,
+                    "explanation": "'Fe' comes from the Latin word for iron, ferrum."
+                },
+                {
+                    "id": 2,
+                    "text": "Which planet in our solar system is known as the Red Planet?",
+                    "options": ["Venus", "Jupiter", "Mars", "Saturn"],
+                    "correct": 2,
+                    "explanation": "Mars appears red due to iron oxide (rust) on its surface."
+                },
+                {
+                    "id": 3,
+                    "text": "Who painted the Mona Lisa?",
+                    "options": ["Vincent van Gogh", "Leonardo da Vinci", "Pablo Picasso", "Claude Monet"],
+                    "correct": 1,
+                    "explanation": "Leonardo da Vinci painted the Mona Lisa in the early 16th century."
+                },
+                {
+                    "id": 4,
+                    "text": "What is the capital city of Japan?",
+                    "options": ["Kyoto", "Osaka", "Tokyo", "Hiroshima"],
+                    "correct": 2,
+                    "explanation": "Tokyo has been the capital of Japan since 1868."
+                },
+                {
+                    "id": 5,
+                    "text": "How many sides does a heptagon have?",
+                    "options": ["6", "7", "8", "9"],
+                    "correct": 1,
+                    "explanation": "A heptagon is a polygon with 7 sides and 7 angles."
+                },
+                {
+                    "id": 6,
+                    "text": "Which organ pumps blood throughout the human body?",
+                    "options": ["Lungs", "Brain", "Liver", "Heart"],
+                    "correct": 3,
+                    "explanation": "The heart pumps oxygenated blood through the human circulatory system."
+                },
+                {
+                    "id": 7,
+                    "text": "In what year did the Titanic sink?",
+                    "options": ["1905", "1912", "1918", "1923"],
+                    "correct": 1,
+                    "explanation": "The RMS Titanic hit an iceberg and sank on April 15, 1912."
+                },
+                {
+                    "id": 8,
+                    "text": "Which gas do plants primarily absorb during photosynthesis?",
+                    "options": ["Oxygen", "Nitrogen", "Carbon Dioxide", "Hydrogen"],
+                    "correct": 2,
+                    "explanation": "Plants absorb carbon dioxide and emit oxygen gas during photosynthesis."
+                },
+                {
+                    "id": 9,
+                    "text": "What is the hardest naturally occurring substance on Earth?",
+                    "options": ["Quartz", "Diamond", "Corundum", "Topaz"],
+                    "correct": 1,
+                    "explanation": "Diamond scores a maximum score of 10 on Mohs hardness scale."
+                },
+                {
+                    "id": 10,
+                    "text": "Who wrote the play 'Romeo and Juliet'?",
+                    "options": ["Charles Dickens", "William Shakespeare", "Mark Twain", "Jane Austen"],
+                    "correct": 1,
+                    "explanation": "William Shakespeare wrote Romeo and Juliet early in his playwright career."
+                },
+                {
+                    "id": 11,
+                    "text": "What is the largest ocean on Earth?",
+                    "options": ["Atlantic Ocean", "Indian Ocean", "Arctic Ocean", "Pacific Ocean"],
+                    "correct": 3,
+                    "explanation": "The Pacific Ocean covers over 30% of Earth's total surface area."
+                },
+                {
+                    "id": 12,
+                    "text": "Which actor played counter-terrorist agent Jack Bauer in the hit TV series '24'?",
+                    "options": ["Kiefer Sutherland", "David Duchovny", "Bryan Cranston", "Jon Hamm"],
+                    "correct": 0,
+                    "explanation": "Kiefer Sutherland starred as Jack Bauer across 8 real-time seasons of 24."
+                },
+                {
+                    "id": 13,
+                    "text": "What is the chemical formula for water?",
+                    "options": ["CO2", "H2O", "NaCl", "O2"],
+                    "correct": 1,
+                    "explanation": "Water is composed of two hydrogen atoms covalently bonded to one oxygen atom."
+                },
+                {
+                    "id": 14,
+                    "text": "Which country is home to the Great Barrier Reef?",
+                    "options": ["Brazil", "Australia", "Indonesia", "South Africa"],
+                    "correct": 1,
+                    "explanation": "The Great Barrier Reef lies off the coast of Queensland, Australia."
+                },
+                {
+                    "id": 15,
+                    "text": "What is the speed of light in a vacuum (approximately)?",
+                    "options": ["150,000 km/s", "300,000 km/s", "450,000 km/s", "1,000,000 km/s"],
+                    "correct": 1,
+                    "explanation": "Light travels at approximately 299,792 kilometers per second in a vacuum."
+                },
+                {
+                    "id": 16,
+                    "text": "Which primary color mixed with blue produces green?",
+                    "options": ["Red", "Yellow", "Purple", "Orange"],
+                    "correct": 1,
+                    "explanation": "Combining blue and yellow creates green pigment."
+                },
+                {
+                    "id": 17,
+                    "text": "Who formulated the general theory of relativity?",
+                    "options": ["Isaac Newton", "Albert Einstein", "Nikola Tesla", "Galileo Galilei"],
+                    "correct": 1,
+                    "explanation": "Albert Einstein published the general theory of relativity in 1915."
+                },
+                {
+                    "id": 18,
+                    "text": "What is the smallest prime number?",
+                    "options": ["0", "1", "2", "3"],
+                    "correct": 2,
+                    "explanation": "2 is the smallest prime number and the only even prime number."
+                },
+                {
+                    "id": 19,
+                    "text": "Which musical instrument features 88 keys on a standard keyboard?",
+                    "options": ["Organ", "Accordion", "Piano", "Synthesizer"],
+                    "correct": 2,
+                    "explanation": "A full-size standard piano features 52 white keys and 36 black keys (88 total)."
+                },
+                {
+                    "id": 20,
+                    "text": "What is the capital city of Australia?",
+                    "options": ["Sydney", "Melbourne", "Canberra", "Brisbane"],
+                    "correct": 2,
+                    "explanation": "Canberra was chosen as Australia's capital in 1908."
+                },
+                {
+                    "id": 21,
+                    "text": "How many bones are in an adult human body?",
+                    "options": ["186", "206", "226", "246"],
+                    "correct": 1,
+                    "explanation": "An adult human skeleton consists of 206 bones."
+                },
+                {
+                    "id": 22,
+                    "text": "Which continent contains the Sahara Desert?",
+                    "options": ["Asia", "South America", "Africa", "Australia"],
+                    "correct": 2,
+                    "explanation": "The Sahara covers most of North Africa."
+                },
+                {
+                    "id": 23,
+                    "text": "Who directed the 1993 sci-fi blockbuster 'Jurassic Park'?",
+                    "options": ["James Cameron", "Steven Spielberg", "George Lucas", "Christopher Nolan"],
+                    "correct": 1,
+                    "explanation": "Steven Spielberg directed Jurassic Park, based on Michael Crichton's novel."
+                },
+                {
+                    "id": 24,
+                    "text": "What element makes up the main chemical component of the sun?",
+                    "options": ["Helium", "Hydrogen", "Oxygen", "Carbon"],
+                    "correct": 1,
+                    "explanation": "Hydrogen accounts for roughly 73% of the sun's total mass."
+                }
+            ]
+        };
+
+        // SCHEMA TEMPLATE FOR MODAL
+        const SCHEMA_REFERENCE = {
+            "id": "custom-quiz-id",
+            "title": "Sample Science Quiz",
+            "category": "Science",
+            "description": "Short description of what this quiz covers.",
+            "timeLimit": 20,
+            "questions": [
+                {
+                    "id": 1,
+                    "text": "Sample question text goes here?",
+                    "options": ["Option A", "Option B", "Option C", "Option D"],
+                    "correct": 0,
+                    "explanation": "Explanation for why Option A is correct."
+                }
+            ]
+        };
+
+        // GLOBAL APPLICATION STATE
+        let appData = {
+            quizzes: [],
+            attempts: []
+        };
+
+        let currentActiveQuiz = null;
+        let currentQIndex = 0;
+        let userAnswers = [];
+        let currentScore = 0;
+        let isOptionSubmitted = false;
+        let timerInterval = null;
+        let timeLeftSeconds = 0;
+        let isUntimedMode = false;
+        let quizStartTimeMs = 0;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initLocalStorageData();
+            renderGlobalSummaryStats();
+            renderQuizLibraryGrid();
+            document.getElementById('schema-json-code').textContent = JSON.stringify(SCHEMA_REFERENCE, null, 2);
+        });
+
+        function initLocalStorageData() {
+            const raw = localStorage.getItem(STORAGE_KEY);
+            if (raw) {
+                try {
+                    appData = JSON.parse(raw);
+                    if (!Array.isArray(appData.quizzes)) appData.quizzes = [];
+                    if (!Array.isArray(appData.attempts)) appData.attempts = [];
+                } catch (e) {
+                    appData = { quizzes: [DEFAULT_24_QUESTION_QUIZ], attempts: [] };
+                }
+            } else {
+                appData = {
+                    quizzes: [DEFAULT_24_QUESTION_QUIZ],
+                    attempts: []
+                };
+                saveDataToStorage();
+            }
+        }
+
+        function saveDataToStorage() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+        }
+
+        function renderGlobalSummaryStats() {
+            document.getElementById('stat-total-quizzes').textContent = appData.quizzes.length;
+            const totalAtt = appData.attempts.length;
+            document.getElementById('stat-total-attempts').textContent = totalAtt;
+
+            if (totalAtt === 0) {
+                document.getElementById('stat-avg-accuracy').textContent = '0%';
+                document.getElementById('stat-total-questions').textContent = '0';
+                return;
+            }
+
+            const totalPctSum = appData.attempts.reduce((sum, a) => sum + (a.percentage || 0), 0);
+            const avgAcc = Math.round(totalPctSum / totalAtt);
+            document.getElementById('stat-avg-accuracy').textContent = `${avgAcc}%`;
+
+            const totalQAnswered = appData.attempts.reduce((sum, a) => sum + (a.totalQuestions || 0), 0);
+            document.getElementById('stat-total-questions').textContent = totalQAnswered;
+        }
+
+        function showScreen(screenId) {
+            clearInterval(timerInterval);
+            document.getElementById('screen-home').classList.add('hidden');
+            document.getElementById('screen-quiz').classList.add('hidden');
+            document.getElementById('screen-results').classList.add('hidden');
+
+            if (screenId === 'home') {
+                document.getElementById('screen-home').classList.remove('hidden');
+                renderGlobalSummaryStats();
+                renderQuizLibraryGrid();
+            } else if (screenId === 'quiz') {
+                document.getElementById('screen-quiz').classList.remove('hidden');
+            } else if (screenId === 'results') {
+                document.getElementById('screen-results').classList.remove('hidden');
+            }
+        }
+
+        function renderQuizLibraryGrid() {
+            const grid = document.getElementById('quiz-library-grid');
+            const emptyState = document.getElementById('empty-library-state');
+
+            grid.innerHTML = '';
+
+            if (appData.quizzes.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            appData.quizzes.forEach((quiz) => {
+                const quizAttempts = appData.attempts.filter(a => a.quizId === quiz.id);
+                const attemptCount = quizAttempts.length;
+
+                let bestPct = 0;
+                let lastTakenStr = 'Never';
+
+                if (attemptCount > 0) {
+                    bestPct = Math.max(...quizAttempts.map(a => a.percentage));
+                    const latestAttempt = quizAttempts[0]; // sorted newest first
+                    lastTakenStr = new Date(latestAttempt.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                }
+
+                const timeVal = quiz.timeLimit !== undefined ? quiz.timeLimit : 20;
+
+                const card = document.createElement('div');
+                card.className = 'glass-panel glass-card-hover rounded-3xl p-6 flex flex-col justify-between space-y-4 border border-slate-800 relative overflow-hidden';
+                card.innerHTML = `
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-semibold px-2.5 py-1 rounded-md bg-purple-500/10 text-purple-300 border border-purple-500/20">
+                                ${escapeHtml(quiz.category || 'General')}
+                            </span>
+                            <div class="flex items-center space-x-1.5">
+                                <button onclick="openStatsForQuiz('${quiz.id}')" class="text-slate-400 hover:text-cyan-400 transition-colors p-1" title="View Quiz Attempt History">
+                                    <i class="fa-solid fa-clock-rotate-left text-xs"></i>
+                                </button>
+                                <button onclick="deleteQuiz('${quiz.id}')" class="text-slate-500 hover:text-rose-400 transition-colors p-1" title="Delete Quiz">
+                                    <i class="fa-regular fa-trash-can text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h3 class="text-xl font-bold text-slate-100 line-clamp-1">${escapeHtml(quiz.title)}</h3>
+                            <p class="text-slate-400 text-xs mt-1 line-clamp-2">${escapeHtml(quiz.description || 'No description provided.')}</p>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 p-3 rounded-2xl bg-slate-950/60 border border-slate-800 text-xs font-mono">
+                            <div>
+                                <span class="text-slate-500 block text-[10px]">BEST SCORE</span>
+                                <span class="font-bold text-neon-purple">${attemptCount > 0 ? `${bestPct}%` : 'N/A'}</span>
+                            </div>
+                            <div>
+                                <span class="text-slate-500 block text-[10px]">ATTEMPTS</span>
+                                <span class="font-bold text-neon-cyan">${attemptCount} total</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-3 border-t border-slate-800/80 flex items-center justify-between">
+                        <div class="text-[11px] font-mono text-slate-400 space-x-2">
+                            <span><i class="fa-solid fa-list-check text-purple-400 mr-1"></i>${quiz.questions.length} Qs</span>
+                            <span><i class="fa-solid fa-clock text-cyan-400 mr-1"></i>${timeVal > 0 ? `${timeVal}s` : 'Untimed'}</span>
+                        </div>
+                        <button onclick="startQuiz('${quiz.id}')" class="neon-btn-primary px-4 py-2 rounded-xl text-xs font-bold flex items-center space-x-1.5">
+                            <span>${attemptCount > 0 ? 'Retake' : 'Start'} Quiz</span>
+                            <i class="fa-solid fa-play text-[10px]"></i>
+                        </button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function deleteQuiz(quizId) {
+            if (confirm("Delete this quiz from your library? (Attempt logs will be preserved)")) {
+                appData.quizzes = appData.quizzes.filter(q => q.id !== quizId);
+                saveDataToStorage();
+                renderGlobalSummaryStats();
+                renderQuizLibraryGrid();
+                showToast("Quiz deleted");
+            }
+        }
+
+        function startQuiz(quizId) {
+            const quiz = appData.quizzes.find(q => q.id === quizId);
+            if (!quiz) return;
+
+            currentActiveQuiz = quiz;
+            currentQIndex = 0;
+            currentScore = 0;
+            userAnswers = [];
+            isUntimedMode = false;
+            quizStartTimeMs = Date.now();
+
+            showScreen('quiz');
+            loadQuestion(0);
+        }
+
+        function loadQuestion(index) {
+            clearInterval(timerInterval);
+            currentQIndex = index;
+            isOptionSubmitted = false;
+
+            const q = currentActiveQuiz.questions[index];
+            const total = currentActiveQuiz.questions.length;
+
+            document.getElementById('quiz-title-display').textContent = currentActiveQuiz.title;
+            document.getElementById('question-number-display').textContent = `Question ${index + 1} of ${total}`;
+            document.getElementById('question-category').textContent = currentActiveQuiz.category || 'General';
+            document.getElementById('question-text').textContent = q.question || q.text;
+
+            // Overall Progress bar
+            const overallPct = (index / total) * 100;
+            document.getElementById('quiz-progress-bar').style.width = `${overallPct}%`;
+
+            document.getElementById('feedback-panel').classList.add('hidden');
+            document.getElementById('next-btn').classList.add('hidden');
+
+            // Render option buttons
+            const container = document.getElementById('options-container');
+            container.innerHTML = '';
+
+            const optionsList = q.options || q.choices || [];
+
+            optionsList.forEach((optText, optIdx) => {
+                const btn = document.createElement('button');
+                btn.className = `w-full glass-panel p-4 rounded-2xl text-left font-medium text-slate-200 transition-all flex items-center justify-between border border-slate-700/60 hover:border-purple-400/50 hover:bg-slate-800/50 group`;
+                btn.onclick = () => selectOption(optIdx, false);
+                btn.id = `opt-btn-${optIdx}`;
+
+                btn.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <span class="w-8 h-8 rounded-xl bg-slate-900 border border-slate-700 flex items-center justify-center text-xs font-mono font-bold text-slate-400 group-hover:border-purple-400 group-hover:text-purple-300">
+                            ${String.fromCharCode(65 + optIdx)}
+                        </span>
+                        <span class="text-sm sm:text-base">${escapeHtml(optText)}</span>
+                    </div>
+                    <div class="icon-slot"></div>
+                `;
+                container.appendChild(btn);
+            });
+
+            // Handle Question Countdown Timer
+            const timeVal = currentActiveQuiz.timeLimit !== undefined ? currentActiveQuiz.timeLimit : 20;
+
+            const timerBadge = document.getElementById('timer-badge');
+            const timerDisplay = document.getElementById('timer-display');
+            const timerProgress = document.getElementById('timer-progress-bar');
+            const toggleBtn = document.getElementById('toggle-timer-btn');
+
+            if (timeVal > 0 && !isUntimedMode) {
+                timerBadge.classList.remove('hidden');
+                timerProgress.parentElement.classList.remove('hidden');
+                toggleBtn.innerHTML = '<i class="fa-solid fa-pause text-amber-400 mr-1"></i> Untime';
+
+                timeLeftSeconds = timeVal;
+                timerDisplay.textContent = `${timeLeftSeconds}s`;
+                timerProgress.style.width = '100%';
+                timerBadge.classList.remove('timer-warning');
+
+                timerInterval = setInterval(() => {
+                    timeLeftSeconds--;
+                    timerDisplay.textContent = `${timeLeftSeconds}s`;
+                    const pctLeft = (timeLeftSeconds / timeVal) * 100;
+                    timerProgress.style.width = `${pctLeft}%`;
+
+                    if (timeLeftSeconds <= 5) {
+                        timerBadge.classList.add('timer-warning');
+                    }
+
+                    if (timeLeftSeconds <= 0) {
+                        clearInterval(timerInterval);
+                        selectOption(-1, true); // Automatic timeout marking as incorrect
+                    }
+                }, 1000);
+            } else {
+                timerBadge.classList.add('hidden');
+                timerProgress.parentElement.classList.add('hidden');
+                toggleBtn.innerHTML = '<i class="fa-solid fa-play text-emerald-400 mr-1"></i> Timed';
+            }
+        }
+
+        function toggleQuizTimer() {
+            if (isOptionSubmitted) return;
+            isUntimedMode = !isUntimedMode;
+            loadQuestion(currentQIndex);
+            showToast(isUntimedMode ? "Timer disabled for this attempt" : "Timer enabled");
+        }
+
+        function selectOption(selectedIdx, isTimeout = false) {
+            if (isOptionSubmitted) return;
+            isOptionSubmitted = true;
+            clearInterval(timerInterval);
+
+            const q = currentActiveQuiz.questions[currentQIndex];
+            
+            let correctIdx = q.correctAnswerIndex;
+            if (correctIdx === undefined && q.correct !== undefined) correctIdx = q.correct;
+
+            const isCorrect = !isTimeout && (selectedIdx === correctIdx);
+            if (isCorrect) currentScore++;
+
+            userAnswers.push({
+                qIndex: currentQIndex,
+                selectedOption: selectedIdx,
+                isCorrect: isCorrect,
+                isTimeout: isTimeout
+            });
+
+            // Style Option Buttons
+            const container = document.getElementById('options-container');
+            const buttons = container.querySelectorAll('button');
+
+            buttons.forEach((btn, idx) => {
+                btn.disabled = true;
+                btn.classList.remove('hover:border-purple-400/50', 'hover:bg-slate-800/50');
+
+                if (idx === correctIdx) {
+                    btn.classList.add('border-emerald-500/80', 'bg-emerald-500/10', 'text-emerald-300');
+                    btn.querySelector('.icon-slot').innerHTML = '<i class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>';
+                } else if (idx === selectedIdx && !isCorrect) {
+                    btn.classList.add('border-rose-500/80', 'bg-rose-500/10', 'text-rose-300');
+                    btn.querySelector('.icon-slot').innerHTML = '<i class="fa-solid fa-circle-xmark text-rose-400 text-lg"></i>';
+                } else {
+                    btn.classList.add('opacity-40');
+                }
+            });
+
+            // Explanation panel
+            const panel = document.getElementById('feedback-panel');
+            const header = document.getElementById('feedback-header');
+            const text = document.getElementById('feedback-text');
+
+            panel.classList.remove('hidden');
+
+            if (isTimeout) {
+                panel.className = 'rounded-2xl p-5 border bg-amber-500/10 border-amber-500/30 text-amber-300';
+                header.innerHTML = '<i class="fa-solid fa-clock"></i><span>Time Expired! Answer Marked Wrong.</span>';
+            } else if (isCorrect) {
+                panel.className = 'rounded-2xl p-5 border bg-emerald-500/10 border-emerald-500/30 text-emerald-300';
+                header.innerHTML = '<i class="fa-solid fa-circle-check"></i><span>Correct Answer!</span>';
+            } else {
+                panel.className = 'rounded-2xl p-5 border bg-rose-500/10 border-rose-500/30 text-rose-300';
+                header.innerHTML = '<i class="fa-solid fa-circle-xmark"></i><span>Incorrect Selection</span>';
+            }
+
+            const optionsList = q.options || q.choices || [];
+            text.textContent = q.explanation || `The correct answer was "${optionsList[correctIdx]}".`;
+
+            const nextBtn = document.getElementById('next-btn');
+            nextBtn.classList.remove('hidden');
+            if (currentQIndex === currentActiveQuiz.questions.length - 1) {
+                nextBtn.querySelector('span').textContent = 'Finish & View Score';
+            } else {
+                nextBtn.querySelector('span').textContent = 'Next Question';
+            }
+        }
+
+        function nextQuestion() {
+            if (currentQIndex < currentActiveQuiz.questions.length - 1) {
+                loadQuestion(currentQIndex + 1);
+            } else {
+                finishQuizAndSaveAttempt();
+            }
+        }
+
+        function exitQuiz() {
+            if (confirm("Exit quiz now? Current progress will not be logged.")) {
+                showScreen('home');
+            }
+        }
+
+        function finishQuizAndSaveAttempt() {
+            const total = currentActiveQuiz.questions.length;
+            const percentage = Math.round((currentScore / total) * 100);
+            const durationSec = Math.round((Date.now() - quizStartTimeMs) / 1000);
+
+            // Construct Attempt Record
+            const attemptRecord = {
+                id: 'att_' + Date.now(),
+                quizId: currentActiveQuiz.id,
+                quizTitle: currentActiveQuiz.title,
+                score: currentScore,
+                totalQuestions: total,
+                percentage: percentage,
+                date: new Date().toISOString(),
+                durationSeconds: durationSec
+            };
+
+            // Save attempt into LocalStorage array (unshift so newest attempts are first)
+            appData.attempts.unshift(attemptRecord);
+            saveDataToStorage();
+
+            renderResultsScreen(attemptRecord);
+        }
+
+        function renderResultsScreen(currentAttempt) {
+            showScreen('results');
+
+            const total = currentAttempt.totalQuestions;
+            const pct = currentAttempt.percentage;
+
+            document.getElementById('result-percentage').textContent = `${pct}%`;
+            document.getElementById('result-score-text').textContent = `${currentAttempt.score} / ${total} Correct`;
+
+            // Personal Best Score Analysis
+            const quizAttempts = appData.attempts.filter(a => a.quizId === currentAttempt.quizId);
+            const bestPct = Math.max(...quizAttempts.map(a => a.percentage));
+
+            document.getElementById('result-best-percentage').textContent = `${bestPct}%`;
+            document.getElementById('result-best-text').textContent = `${quizAttempts.length} Total Attempts`;
+
+            const badge = document.getElementById('result-feedback-badge');
+
+            if (pct === 100) {
+                badge.className = 'inline-block px-4 py-2 rounded-xl text-sm font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+                badge.textContent = '🌟 PERFECT SCORE! Mastered Quiz';
+                triggerConfetti();
+            } else if (pct >= 80) {
+                badge.className = 'inline-block px-4 py-2 rounded-xl text-sm font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30';
+                badge.textContent = '🎉 EXCELLENT! Attempt saved to history';
+                triggerConfetti();
+            } else if (pct >= 50) {
+                badge.className = 'inline-block px-4 py-2 rounded-xl text-sm font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30';
+                badge.textContent = '👍 GOOD JOB! Review answers below to improve';
+            } else {
+                badge.className = 'inline-block px-4 py-2 rounded-xl text-sm font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30';
+                badge.textContent = '📚 ATTEMPT SAVED! Retake anytime to boost score';
+            }
+
+            // Render Itemized Review
+            const container = document.getElementById('review-list-container');
+            container.innerHTML = '';
+
+            currentActiveQuiz.questions.forEach((q, idx) => {
+                const userAns = userAnswers.find(a => a.qIndex === idx);
+                const isCorrect = userAns ? userAns.isCorrect : false;
+                const isTimeout = userAns ? userAns.isTimeout : false;
+                const selectedIdx = userAns ? userAns.selectedOption : -1;
+
+                let correctIdx = q.correctAnswerIndex;
+                if (correctIdx === undefined && q.correct !== undefined) correctIdx = q.correct;
+
+                const optionsList = q.options || q.choices || [];
+
+                const card = document.createElement('div');
+                card.className = `glass-panel rounded-2xl p-6 border ${isCorrect ? 'border-emerald-500/30' : 'border-rose-500/30'} space-y-4`;
+
+                let selectedText = 'Unanswered / Timeout';
+                if (!isTimeout && selectedIdx >= 0) {
+                    selectedText = optionsList[selectedIdx];
+                }
+
+                let correctText = optionsList[correctIdx];
+
+                card.innerHTML = `
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="space-y-1">
+                            <span class="text-xs font-mono text-slate-400">Question ${idx + 1}</span>
+                            <h4 class="text-base font-bold text-slate-100">${escapeHtml(q.question || q.text)}</h4>
+                        </div>
+                        <span class="px-3 py-1 rounded-full text-xs font-bold ${isCorrect ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/20 text-rose-400 border border-rose-500/30'}">
+                            ${isCorrect ? 'Correct' : (isTimeout ? 'Timed Out' : 'Incorrect')}
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                        <div class="p-3 rounded-xl bg-slate-900/60 border ${isCorrect ? 'border-emerald-500/20 text-emerald-300' : 'border-rose-500/20 text-rose-300'}">
+                            <span class="text-xs text-slate-400 block mb-1">Your Selection:</span>
+                            <span class="font-medium">${escapeHtml(selectedText)}</span>
+                        </div>
+                        <div class="p-3 rounded-xl bg-slate-900/60 border border-emerald-500/20 text-emerald-300">
+                            <span class="text-xs text-slate-400 block mb-1">Correct Answer:</span>
+                            <span class="font-medium">${escapeHtml(correctText)}</span>
+                        </div>
+                    </div>
+
+                    ${q.explanation ? `
+                        <div class="text-xs text-slate-300 bg-slate-950/50 p-3 rounded-xl border border-slate-800 leading-relaxed">
+                            <i class="fa-solid fa-lightbulb text-amber-400 mr-1.5"></i>
+                            <strong>Explanation:</strong> ${escapeHtml(q.explanation)}
+                        </div>
+                    ` : ''}
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function retakeCurrentQuiz() {
+            if (currentActiveQuiz) {
+                startQuiz(currentActiveQuiz.id);
+            }
+        }
+
+        function openImportModal() {
+            document.getElementById('import-modal').classList.remove('hidden');
+            document.getElementById('import-error-msg').classList.add('hidden');
+        }
+
+        function closeImportModal() {
+            document.getElementById('import-modal').classList.add('hidden');
+        }
+
+        function openSchemaModal() {
+            document.getElementById('schema-modal').classList.remove('hidden');
+        }
+
+        function closeSchemaModal() {
+            document.getElementById('schema-modal').classList.add('hidden');
+        }
+
+        function autoFormatJsonInput() {
+            const textarea = document.getElementById('json-input');
+            try {
+                const parsed = JSON.parse(textarea.value);
+                textarea.value = JSON.stringify(parsed, null, 2);
+                document.getElementById('import-error-msg').classList.add('hidden');
+            } catch (e) {
+                showImportError("JSON Formatting Error: " + e.message);
+            }
+        }
+
+        function processJsonImportText() {
+            const rawText = document.getElementById('json-input').value.trim();
+            const overrideTimer = document.getElementById('timer-override-input').value.trim();
+
+            if (!rawText) {
+                showImportError("Please paste JSON text code first.");
+                return;
+            }
+
+            try {
+                const quizObject = JSON.parse(rawText);
+
+                if (overrideTimer !== "") {
+                    quizObject.timeLimit = parseInt(overrideTimer, 10);
+                }
+
+                if (!quizObject.title || typeof quizObject.title !== 'string') {
+                    throw new Error("Quiz object must contain a valid 'title' string.");
+                }
+
+                const qArr = quizObject.questions;
+                if (!Array.isArray(qArr) || qArr.length === 0) {
+                    throw new Error("'questions' must be a non-empty array.");
+                }
+
+                qArr.forEach((q, idx) => {
+                    const txt = q.question || q.text;
+                    if (!txt || typeof txt !== 'string') {
+                        throw new Error(`Question #${idx + 1} is missing 'text' or 'question' string.`);
+                    }
+
+                    const opts = q.options || q.choices;
+                    if (!Array.isArray(opts) || opts.length < 2) {
+                        throw new Error(`Question #${idx + 1} must have an 'options' array with 2+ choices.`);
+                    }
+
+                    let cIdx = q.correctAnswerIndex;
+                    if (cIdx === undefined && q.correct !== undefined) cIdx = q.correct;
+
+                    if (typeof cIdx !== 'number' || cIdx < 0 || cIdx >= opts.length) {
+                        throw new Error(`Question #${idx + 1} specifies an invalid correct index.`);
+                    }
+
+                    q.text = txt;
+                    q.options = opts;
+                    q.correct = cIdx;
+                });
+
+                if (!quizObject.id) {
+                    quizObject.id = 'quiz_' + Date.now();
+                }
+
+                const matchIdx = appData.quizzes.findIndex(q => q.id === quizObject.id);
+                if (matchIdx >= 0) {
+                    appData.quizzes[matchIdx] = quizObject;
+                } else {
+                    appData.quizzes.unshift(quizObject);
+                }
+
+                saveDataToStorage();
+                closeImportModal();
+                document.getElementById('json-input').value = '';
+                showToast("Quiz JSON imported and saved!");
+                showScreen('home');
+
+            } catch (err) {
+                showImportError(err.message);
+            }
+        }
+
+        function showImportError(msg) {
+            const box = document.getElementById('import-error-msg');
+            document.getElementById('import-error-text').textContent = msg;
+            box.classList.remove('hidden');
+        }
+
+        function copySchemaJsonToClipboard() {
+            const jsonText = JSON.stringify(SCHEMA_REFERENCE, null, 2);
+            navigator.clipboard.writeText(jsonText).then(() => {
+                showToast("Schema JSON copied to clipboard!");
+            }).catch(() => {
+                showToast("Copied schema JSON!");
+            });
+        }
+
+        function loadSchemaTemplateIntoImporter() {
+            closeSchemaModal();
+            openImportModal();
+            document.getElementById('json-input').value = JSON.stringify(SCHEMA_REFERENCE, null, 2);
+        }
+
+        function openStatsModal(quizIdFilter = null) {
+            const modal = document.getElementById('stats-modal');
+            const list = document.getElementById('stats-history-list');
+            const titleEl = document.getElementById('stats-modal-title');
+
+            modal.classList.remove('hidden');
+            list.innerHTML = '';
+
+            let filteredAttempts = appData.attempts;
+            if (quizIdFilter) {
+                filteredAttempts = appData.attempts.filter(a => a.quizId === quizIdFilter);
+                titleEl.textContent = "Quiz Attempt History Logs";
+            } else {
+                titleEl.textContent = "All Quiz Attempt Logs";
+            }
+
+            if (filteredAttempts.length === 0) {
+                list.innerHTML = `
+                    <div class="text-center py-12 text-slate-400">
+                        <i class="fa-solid fa-clock-rotate-left text-3xl mb-2 text-slate-600 block"></i>
+                        <span>No attempt logs recorded yet. Take a quiz to record score history!</span>
+                    </div>
+                `;
+                return;
+            }
+
+            filteredAttempts.forEach((att) => {
+                const dateStr = new Date(att.date).toLocaleString(undefined, {
+                    month: 'short', day: 'numeric', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                });
+
+                const row = document.createElement('div');
+                row.className = 'glass-panel p-4 rounded-2xl border border-slate-800 flex flex-wrap items-center justify-between gap-4 text-sm';
+                row.innerHTML = `
+                    <div class="space-y-1">
+                        <span class="font-bold text-slate-100 block">${escapeHtml(att.quizTitle)}</span>
+                        <span class="text-xs font-mono text-slate-400">${dateStr} • Duration: ${att.durationSeconds || 0}s</span>
+                    </div>
+
+                    <div class="flex items-center space-x-4">
+                        <div class="text-right">
+                            <span class="text-base font-black ${att.percentage >= 80 ? 'text-emerald-400' : (att.percentage >= 50 ? 'text-cyan-400' : 'text-rose-400')}">
+                                ${att.percentage}%
+                            </span>
+                            <span class="text-xs text-slate-400 block">${att.score} / ${att.totalQuestions} Correct</span>
+                        </div>
+                    </div>
+                `;
+                list.appendChild(row);
+            });
+        }
+
+        function openStatsForQuiz(quizId) {
+            openStatsModal(quizId);
+        }
+
+        function openStatsModalForCurrentQuiz() {
+            if (currentActiveQuiz) {
+                openStatsModal(currentActiveQuiz.id);
+            }
+        }
+
+        function closeStatsModal() {
+            document.getElementById('stats-modal').classList.add('hidden');
+        }
+
+        function clearAllAttemptHistory() {
+            if (confirm("Are you sure you want to clear all attempt logs?")) {
+                appData.attempts = [];
+                saveDataToStorage();
+                renderGlobalSummaryStats();
+                renderQuizLibraryGrid();
+                closeStatsModal();
+                showToast("All attempt history cleared");
+            }
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        function showToast(msg) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'glass-panel border border-purple-400/40 text-purple-200 px-4 py-3 rounded-xl text-xs font-semibold shadow-xl flex items-center space-x-2 animate-bounce';
+            toast.innerHTML = `<i class="fa-solid fa-circle-info text-neon-purple"></i><span>${escapeHtml(msg)}</span>`;
+            container.appendChild(toast);
+
+            setTimeout(() => { toast.remove(); }, 3000);
+        }
+
+        function triggerConfetti() {
+            if (typeof confetti === 'function') {
+                confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+            }
+        }
+    </script>
+</body>
+</html>
